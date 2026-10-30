@@ -7,34 +7,56 @@ from ai.gemma_client import generate_text
 
 def extract_opportunity(text: str) -> dict:
     """
-    Extract structured scholarship, internship, or other
-    opportunity information from raw text using Gemma.
+    Extract structured opportunity information using Gemma.
+
+    AI-extracted data is not independently verified.
+    Unknown information must remain null or an empty list.
     """
 
     if not text or not text.strip():
         raise ValueError("Opportunity text cannot be empty.")
 
     prompt = f"""
-Extract opportunity information from the text below.
+Extract structured information from the opportunity source text.
 
-Return ONLY valid JSON with these keys:
-- title
+Return ONLY one valid JSON object with exactly these fields:
+
+- title: string
 - category: scholarship, internship, job, fellowship, or other
-- organization
-- description
-- deadline
+- organization: string or null
+- description: string or null
+- deadline: YYYY-MM-DD or null
+- start_date: YYYY-MM-DD or null
+- location: string or null
+- work_mode: remote, hybrid, onsite, or null
+- duration_months: number or null
+- stipend_monthly: number or null
+- salary_annual: number or null
+- minimum_experience_years: number or null
+- required_skills: list of strings
+- eligible_degrees: list of strings
+- eligible_years: list of strings
 - eligibility:
-    - minimum_marks
-    - maximum_family_income
-    - eligible_categories
-    - eligible_courses
-    - other_requirements
-- required_documents
-- source_uncertainties
+    - minimum_marks: number or null
+    - maximum_family_income: number or null
+    - eligible_categories: list of strings
+    - eligible_courses: list of strings
+    - other_requirements: list of strings
+- required_documents: list of strings
+- source_uncertainties: list of strings
 
-Use null for unknown scalar values and empty lists
-for unknown list values. Do not invent information.
-Use YYYY-MM-DD for a deadline when its exact date is known.
+Rules:
+1. Do not invent details that are absent from the source.
+2. Use null for unknown scalar values and [] for unknown lists.
+3. Do not confuse an opportunity's category with a student's category.
+4. Keep the application deadline and start date separate.
+5. Convert stipend and salary to numbers only when the amount and period
+   are clear. Monthly stipend must be monthly; annual salary must be annual.
+6. Do not claim an opportunity is government-verified merely because
+   the text says so. Record uncertainty if independent verification is absent.
+7. If dates conflict or seem unusual, preserve the stated dates and explain
+   the inconsistency in source_uncertainties.
+8. Return valid JSON only, without Markdown code fences.
 
 Source text:
 {text}
@@ -45,7 +67,6 @@ Source text:
     if not response or not response.strip():
         raise RuntimeError("Gemma returned an empty response.")
 
-    # Remove Markdown code fences if Gemma adds them.
     cleaned = response.strip()
     cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned)
     cleaned = re.sub(r"\s*```$", "", cleaned)
@@ -74,17 +95,55 @@ Source text:
         "other",
     }
 
-    if category not in allowed_categories:
+    if not isinstance(category, str) or category.lower() not in allowed_categories:
         raise ValueError("Opportunity category is invalid.")
 
     result["title"] = title.strip()
+    result["category"] = category.lower()
 
-    # Ensure expected optional fields exist.
-    result.setdefault("organization", None)
-    result.setdefault("description", None)
-    result.setdefault("deadline", None)
-    result.setdefault("eligibility", {})
-    result.setdefault("required_documents", [])
-    result.setdefault("source_uncertainties", [])
+    # Ensure optional fields have consistent defaults.
+    scalar_fields = [
+        "organization",
+        "description",
+        "deadline",
+        "start_date",
+        "location",
+        "work_mode",
+        "duration_months",
+        "stipend_monthly",
+        "salary_annual",
+        "minimum_experience_years",
+    ]
+
+    list_fields = [
+        "required_skills",
+        "eligible_degrees",
+        "eligible_years",
+        "required_documents",
+        "source_uncertainties",
+    ]
+
+    for field in scalar_fields:
+        result.setdefault(field, None)
+
+    for field in list_fields:
+        if not isinstance(result.get(field), list):
+            result[field] = []
+
+    eligibility = result.get("eligibility")
+    if not isinstance(eligibility, dict):
+        eligibility = {}
+
+    eligibility.setdefault("minimum_marks", None)
+    eligibility.setdefault("maximum_family_income", None)
+    eligibility.setdefault("eligible_categories", [])
+    eligibility.setdefault("eligible_courses", [])
+    eligibility.setdefault("other_requirements", [])
+
+    for field in ["eligible_categories", "eligible_courses", "other_requirements"]:
+        if not isinstance(eligibility[field], list):
+            eligibility[field] = []
+
+    result["eligibility"] = eligibility
 
     return result
