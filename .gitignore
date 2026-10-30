@@ -1,0 +1,21 @@
+# Secrets and environment variables
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# macOS
+.DS_Store
+
+# Frontend dependencies and builds
+node_modules/
+dist/
+
+# Test and tool caches
+.pytest_cache/
+.mypy_cache/
