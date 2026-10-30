@@ -17,3 +17,6 @@ pymupdf
 python-docx
 google-genai
 EOF
+
+psycopg[binary]
+sqlalchemy
