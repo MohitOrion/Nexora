@@ -1,4 +1,3 @@
-
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
@@ -63,6 +62,10 @@ def get_opportunities(
                     "category": item.category,
                     "organization": item.organization,
                     "description": item.description,
+                    "location": item.location,
+                    "work_mode": item.work_mode,
+                    "stipend_monthly": item.stipend_monthly,
+                    "salary_annual": item.salary_annual,
                     "deadline": item.deadline,
                     "eligibility": item.eligibility,
                     "required_documents": item.required_documents,
@@ -84,7 +87,6 @@ def get_opportunities(
             status_code=500,
             detail="Failed to retrieve opportunities.",
         ) from exc
-
 
 
 @router.get("/{opportunity_id}")
@@ -110,6 +112,10 @@ def get_opportunity_detail(
         "category": opportunity.category,
         "organization": opportunity.organization,
         "description": opportunity.description,
+        "location": opportunity.location,
+        "work_mode": opportunity.work_mode,
+        "stipend_monthly": opportunity.stipend_monthly,
+        "salary_annual": opportunity.salary_annual,
         "eligibility": opportunity.eligibility,
         "required_documents": opportunity.required_documents,
         "deadline": opportunity.deadline,
